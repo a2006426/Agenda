@@ -8,7 +8,8 @@ namespace Agenda
 {
     class Program
     {
-        public static string PathToFile = "Agenda.txt";
+        public static string PathToAgenda = "Agenda.txt";
+        public static string PathToTemp = "tempUsers.txt";
         static void Main(string[] args)
         {
             char choice = Interface();
@@ -21,27 +22,32 @@ namespace Agenda
                         NewUser();
                         break;
                     case '2':
-                        SearchUser();
+                        Console.Write("Nom de l'usuari a cercar: ");
+                        Console.WriteLine(SearchUser(Console.ReadLine()));
+                        Thread.Sleep(4000);
                         break;
                     case '3':
-                        EditUser();
+                        Console.Write("Nom de l'usuari a editar: ");
+                        EditUser(Console.ReadLine());
                         break;
                     case '4':
-                        DelUser();
+                        Console.Write("Nom de l'usuari a eliminar: ");
+                        DelUser(SearchUser(Console.ReadLine()));
                         break;
                     case '5':
                         ShowUsers();
                         break;
                     case '6':
-                        SortAll();
+                        SortAll(PathToAgenda);
                         break;
                     default:
-                        Console.WriteLine("Opció no valida, torna a provar: ");
+                        Console.WriteLine("Opció no valida, torna-ho a provar: ");
                         Thread.Sleep(1000);
                         break;
                 }
                 choice = Interface();
             }
+            File.WriteAllText(PathToTemp, String.Empty); //clean temp file
         }
         static char Interface() //show options, return selected
         {
@@ -59,7 +65,7 @@ namespace Agenda
             Console.WriteLine("Presiona [Q] per sortir.");
             return Console.ReadKey().KeyChar;
         }
-        static void NewUser()
+        static void NewUser() //adds a new user to agenda.txt
         {
             //vars
             String name, surname, dni, phone, bday, email;
@@ -84,14 +90,14 @@ namespace Agenda
             Console.WriteLine(surname);
             Console.WriteLine(dni);
             Console.WriteLine(phone);
-            Console.WriteLine(bday);
-            Console.Write("\tEdat: " + Age(Convert.ToDateTime(bday)));
+            Console.Write(bday);
+            Console.WriteLine("\tEdat: " + Age(Convert.ToDateTime(bday)));
             Console.WriteLine(email);
-            Thread.Sleep(3000);
+            Thread.Sleep(10000);
             Console.Clear();
 
             //append data to file
-            using (StreamWriter agenda = new StreamWriter(PathToFile, true))
+            using (var agenda = new StreamWriter(PathToAgenda, true))
             {
                 agenda.Write(name + ";");
                 agenda.Write(surname + ";");
@@ -101,17 +107,16 @@ namespace Agenda
                 agenda.WriteLine(email);
             }
         }
-        static string SearchUser()
+        static string SearchUser(string text) //returns all info about 1 user
         {
             //vars
             int selectedUser;
             string line;
-            string tempPath = Path.GetTempPath();
-            Console.Write("Nom de l'usuari a cercar: ");
-            string text = Console.ReadLine();
-            Regex filter = new Regex("^" + text + ".*", RegexOptions.IgnoreCase);
-            using (StreamReader agenda = new StreamReader(PathToFile))
-            using (StreamWriter tempFile = new StreamWriter(tempPath))
+            Regex filter = new Regex("^" + text + ".*", RegexOptions.IgnoreCase); //string will start with text
+            File.WriteAllText(PathToTemp, String.Empty); //clean temp file
+            Console.WriteLine("Selecciona de la llista: ");
+            using (var agenda = new StreamReader(PathToAgenda))
+            using (var tempFile = new StreamWriter(PathToTemp))
             {
                 //check every line, count and print matches
                 for (int i = 1; (line = agenda.ReadLine()) != null;)
@@ -119,47 +124,85 @@ namespace Agenda
                     if (filter.IsMatch(line))
                     {
                         tempFile.WriteLine(line);
-                        Console.WriteLine("{0}) {1}", i, line.Replace(";", "\t"));
+                        Console.WriteLine("{0}) {1}", i, line.Replace(";", "\t")); //show data
                         i++;
                     }
                 }
             }
-            Console.WriteLine("Selecciona de la llista: ");
             selectedUser = Console.ReadKey().KeyChar - 48;
-            return File.ReadLines(tempPath).ElementAt(selectedUser - 1);            
+            Console.Clear();
+            return File.ReadLines(PathToTemp).ElementAt(selectedUser - 1);            
         }
-        static void EditUser()
+        static void EditUser(string targetUser)
         {
-
+            int targetAtribute;
+            string updatedUser;
+            targetUser = SearchUser(targetUser); //search and save the target user
+            string[] userArray = targetUser.Split(";".ToCharArray()); //divide categories
+            Console.WriteLine(userArray);
+            Console.WriteLine("Quin atribut vols editar de {0}?: ", userArray[0]);
+            Console.WriteLine("");
+            Console.WriteLine("1) Nom");
+            Console.WriteLine("2) Cognoms");
+            Console.WriteLine("3) DNI");
+            Console.WriteLine("4) Telefon");
+            Console.WriteLine("5) Data de naixement");
+            Console.WriteLine("6) Correu electronic");
+            targetAtribute = Console.ReadKey().KeyChar - 49;//starting on 1
+            userArray[targetAtribute] = Console.ReadLine();
+            updatedUser = string.Join(";", userArray);
+            DelUser(targetUser);
+            using (var agenda = new StreamWriter(PathToAgenda, true))
+                agenda.Write(updatedUser);
         }
-        static void DelUser()
+        static void DelUser(string delUser) //creates a temp file without the selected user and replaces original
         {
-            string tempFile = Path.GetTempFileName();
+            string tempPath = Path.GetTempFileName();
 
-            using (var sr = new StreamReader("file.txt"))
-            using (var sw = new StreamWriter(tempFile))
+            using (var agenda = new StreamReader(PathToAgenda))
+            using (var tempFile = new StreamWriter(tempPath))
             {
                 string line;
-
-                while ((line = sr.ReadLine()) != null)
+                while ((line = agenda.ReadLine()) != null)
                 {
-                    if (line != "removeme")
-                        sw.WriteLine(line);
+                    if (line != delUser)
+                        tempFile.WriteLine(line);
                 }
             }
-
-            File.Delete("file.txt");
-            File.Move(tempFile, "file.txt");
+            //overwrite agenda
+            File.Delete(PathToAgenda);
+            File.Move(tempPath, PathToAgenda);
         }
-        static void ShowUsers()
+        static void ShowUsers() //prints all names, surnames and phone nums
         {
-
+            //copy agenda to tmp
+            File.Delete(PathToTemp);
+            File.Move(PathToAgenda, PathToTemp);
+            //sort tmp before printing
+            SortAll(PathToTemp);
+            string line;
+            Console.WriteLine("Nom\t\t\tCognoms\t\t\tTelefon");
+            Console.WriteLine("");
+            using (var agenda = new StreamReader(PathToTemp))
+            {
+                while ((line = agenda.ReadLine()) != null)
+                {
+                    string[] userArray = line.Split(";".ToCharArray()); //divide categories
+                    Console.WriteLine("{0}\t\t\t{1}\t\t\t{2}", userArray[0], userArray[1], userArray[3]);
+                }
+            }
+            File.WriteAllText(PathToTemp, String.Empty); //clean tmp file
+            Thread.Sleep(7000);
         }
-        static void SortAll()
+        static void SortAll(string inFile) //alphabetically sorts a file using a temp file
         {
-
+            string outFile = Path.GetTempFileName();
+            var contents = File.ReadAllLines(inFile);
+            Array.Sort(contents);
+            File.WriteAllLines(outFile, contents);
+            File.Delete(inFile);
+            File.Move(outFile, inFile);
         }
-
         //data check methods
         static string NameCheckValid(String name)
         {
