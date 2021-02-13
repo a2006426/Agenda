@@ -1,41 +1,98 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Text.RegularExpressions;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace Agenda
 {
     class Program
     {
+        public static string PathToFile = "Agenda.txt";
         static void Main(string[] args)
         {
-            NewUser();
+            char choice = Interface();
+            while (!(choice == 'q' || choice == 'Q')) 
+            {
+                Console.Clear();
+                switch (choice)
+                {
+                    case '1':
+                        NewUser();
+                        break;
+                    case '2':
+                        SearchUser();
+                        break;
+                    case '3':
+                        EditUser();
+                        break;
+                    case '4':
+                        DelUser();
+                        break;
+                    case '5':
+                        ShowUsers();
+                        break;
+                    case '6':
+                        SortAll();
+                        break;
+                    default:
+                        Console.WriteLine("Opció no valida, torna a provar: ");
+                        Thread.Sleep(1000);
+                        break;
+                }
+                choice = Interface();
+            }
+        }
+        static char Interface() //show options, return selected
+        {
+            Console.Clear();
+            Console.WriteLine("================================================");
+            Console.WriteLine("|                   Menu Agenda                |");
+            Console.WriteLine("================================================");
+            Console.WriteLine("");
+            Console.WriteLine("Selecciona una opció:");
+            Console.WriteLine("");
+            Console.WriteLine("1) Afegir usuari\t4) Eliminar usuari");
+            Console.WriteLine("2) Cercar usuari\t5) Mostrar usuaris");
+            Console.WriteLine("3) Editar usuari\t6) Ordenar usuaris");
+            Console.WriteLine("");
+            Console.WriteLine("Presiona [Q] per sortir.");
+            return Console.ReadKey().KeyChar;
         }
         static void NewUser()
         {
             //vars
-            String fileName = "Agenda.txt";
             String name, surname, dni, phone, bday, email;
+
             //console input
             Console.WriteLine("Nom: ");
-            name = Name(Console.ReadLine());
+            name = NameCheckValid(Console.ReadLine());
             Console.WriteLine("Cognom: ");
-            surname = Name(Console.ReadLine());
+            surname = NameCheckValid(Console.ReadLine());
             Console.WriteLine("DNI: ");
-            dni = Dni(Console.ReadLine());
+            dni = DniCheckValid(Console.ReadLine());
             Console.WriteLine("Telefon: ");
             phone = PhoneCheckValid(Console.ReadLine());
             Console.WriteLine("Data de naixement: ");
-            bday = BDate(Console.ReadLine());
+            bday = BDateCheckValid(Console.ReadLine());
             Console.WriteLine("Correu electronic: ");
-            email = Email(Console.ReadLine());
-            //add data to file
-            using (StreamWriter agenda = new StreamWriter(fileName, true))
+            email = EmailCheckValid(Console.ReadLine());
+
+            //show data
+            Console.Clear();
+            Console.WriteLine(name);
+            Console.WriteLine(surname);
+            Console.WriteLine(dni);
+            Console.WriteLine(phone);
+            Console.WriteLine(bday);
+            Console.Write("\tEdat: " + Age(Convert.ToDateTime(bday)));
+            Console.WriteLine(email);
+            Thread.Sleep(3000);
+            Console.Clear();
+
+            //append data to file
+            using (StreamWriter agenda = new StreamWriter(PathToFile, true))
             {
-                //agenda.Write(Name(Console.ReadLine()) + ";"); this could be repeated if I didn't need to show the answers on screen
                 agenda.Write(name + ";");
                 agenda.Write(surname + ";");
                 agenda.Write(dni + ";");
@@ -44,11 +101,67 @@ namespace Agenda
                 agenda.WriteLine(email);
             }
         }
+        static string SearchUser()
+        {
+            //vars
+            int selectedUser;
+            string line;
+            string tempPath = Path.GetTempPath();
+            Console.Write("Nom de l'usuari a cercar: ");
+            string text = Console.ReadLine();
+            Regex filter = new Regex("^" + text + ".*", RegexOptions.IgnoreCase);
+            using (StreamReader agenda = new StreamReader(PathToFile))
+            using (StreamWriter tempFile = new StreamWriter(tempPath))
+            {
+                //check every line, count and print matches
+                for (int i = 1; (line = agenda.ReadLine()) != null;)
+                {
+                    if (filter.IsMatch(line))
+                    {
+                        tempFile.WriteLine(line);
+                        Console.WriteLine("{0}) {1}", i, line.Replace(";", "\t"));
+                        i++;
+                    }
+                }
+            }
+            Console.WriteLine("Selecciona de la llista: ");
+            selectedUser = Console.ReadKey().KeyChar - 48;
+            return File.ReadLines(tempPath).ElementAt(selectedUser - 1);            
+        }
         static void EditUser()
         {
 
         }
-        static string Name(String name)
+        static void DelUser()
+        {
+            string tempFile = Path.GetTempFileName();
+
+            using (var sr = new StreamReader("file.txt"))
+            using (var sw = new StreamWriter(tempFile))
+            {
+                string line;
+
+                while ((line = sr.ReadLine()) != null)
+                {
+                    if (line != "removeme")
+                        sw.WriteLine(line);
+                }
+            }
+
+            File.Delete("file.txt");
+            File.Move(tempFile, "file.txt");
+        }
+        static void ShowUsers()
+        {
+
+        }
+        static void SortAll()
+        {
+
+        }
+
+        //data check methods
+        static string NameCheckValid(String name)
         {
             Regex nameFilter = new Regex(@"^[a-zA-Z\s,]*$");//filter allows only spaces & lower/upper case
             while (true)
@@ -65,10 +178,9 @@ namespace Agenda
                 }
             }
         }
-        static string Dni(String dni)
+        static string DniCheckValid(String dni)
         {
-            string pattern = @"^[\d]+\w$";
-            Regex dniFilter = new Regex(pattern);
+            Regex dniFilter = new Regex(@"^[\d]+\w$");
             String lettersDni = "TRWAGMYFPDXBNJZSQVHLCKE";
             while (true)
             {
@@ -94,8 +206,7 @@ namespace Agenda
         }
         static string PhoneCheckValid(String phone) //returns a valid phone number
         {
-            string pattern = @"^[\d]+$";
-            Regex phoneFilter = new Regex(pattern);
+            Regex phoneFilter = new Regex(@"^[\d]+$");
             while (true) 
             {
                 if (phone.Length == 9 && phoneFilter.IsMatch(phone)) 
@@ -107,28 +218,27 @@ namespace Agenda
                 }
             }
         }
-        static string BDate(String date) //returns a valid birth date
+        static string BDateCheckValid(String date) //returns a valid birth date
         {
             while (true)
             {
                 if (DateTime.TryParse(date, out DateTime bday))
-                {
-                    //TimeSpan anys = DateTime.Today - auxDate;
-                    //Console.WriteLine(new DateTime(anys.Ticks).Year - 1);
-                    DateTime now = DateTime.Now;
-                    int age = now.Year - bday.Year;
-                    if (now < bday.AddYears(age)) age--;
-                    Console.WriteLine(age);
                     return bday.ToString().Substring(0,10); //convert to str and remove the time
-                }
                 else
                 {
-                    Console.WriteLine("Data no és valida, prova un altra vegada (format dd mm aaaa): ");
+                    Console.WriteLine("Data no és valida, prova un altra vegada (format dd MM aaaa): ");
                     date = Console.ReadLine();
                 }
             }
         }
-        static string Email(String email)
+        static int Age(DateTime bday)
+        {
+            DateTime now = DateTime.Now;
+            int age = now.Year - bday.Year;
+            if (now < bday.AddYears(age)) age--;
+            return age;
+        }
+        static string EmailCheckValid(String email)
         {
             Regex emailFilter = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
             email.ToLower();
