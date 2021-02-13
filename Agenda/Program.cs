@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Globalization;
 
 namespace Agenda
 {
@@ -148,7 +149,9 @@ namespace Agenda
             Console.WriteLine("4) Telefon");
             Console.WriteLine("5) Data de naixement");
             Console.WriteLine("6) Correu electronic");
-            targetAtribute = Console.ReadKey().KeyChar - 49;//starting on 1
+            targetAtribute = Console.ReadKey().KeyChar - 49;//(char)'1'- 49 = (int)0
+            Console.Clear();
+            Console.Write("Nou camp: ");
             userArray[targetAtribute] = Console.ReadLine();
             updatedUser = string.Join(";", userArray);
             DelUser(targetUser);
@@ -176,8 +179,7 @@ namespace Agenda
         static void ShowUsers() //prints all names, surnames and phone nums
         {
             //copy agenda to tmp
-            File.Delete(PathToTemp);
-            File.Move(PathToAgenda, PathToTemp);
+            File.Copy(PathToAgenda, PathToTemp, true);
             //sort tmp before printing
             SortAll(PathToTemp);
             string line;
@@ -194,14 +196,11 @@ namespace Agenda
             File.WriteAllText(PathToTemp, String.Empty); //clean tmp file
             Thread.Sleep(7000);
         }
-        static void SortAll(string inFile) //alphabetically sorts a file using a temp file
+        static void SortAll(string inFile) //alphabetically sorts a file
         {
-            string outFile = Path.GetTempFileName();
             var contents = File.ReadAllLines(inFile);
             Array.Sort(contents);
-            File.WriteAllLines(outFile, contents);
-            File.Delete(inFile);
-            File.Move(outFile, inFile);
+            File.WriteAllLines(inFile, contents);
         }
         //data check methods
         static string NameCheckValid(String name)
@@ -211,7 +210,8 @@ namespace Agenda
             {
                 if (nameFilter.IsMatch(name))
                 {
-                    name = name[0].ToString().ToUpper() + name.Substring(1).ToLower();//first up, rest low
+                    name = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name.ToLower());
+                    //name = name[0].ToString().ToUpper() + name.Substring(1).ToLower();//first up, rest low
                     return name;
                 }
                 else
